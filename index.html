@@ -20,9 +20,20 @@
             box-sizing: border-box;
         }
 
-        .card-container {
+        .screen {
             width: 100%;
             max-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .card-container {
+            width: 100%;
             height: 200px;
             perspective: 1000px;
             cursor: pointer;
@@ -50,7 +61,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 600;
             border-radius: 16px;
             background: var(--tg-theme-secondary-bg-color, #ffffff);
@@ -66,61 +77,149 @@
         }
 
         .controls {
-            margin-top: 30px;
+            margin-top: 25px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        button, input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 12px;
+            box-sizing: border-box;
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 12px;
             border: none;
             background-color: var(--tg-theme-button-color, #007aff);
             color: var(--tg-theme-button-text-color, #ffffff);
             font-weight: 500;
             cursor: pointer;
         }
+
+        input {
+            border: 1px solid rgba(0,0,0,0.15);
+            background: var(--tg-theme-secondary-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000);
+            outline: none;
+        }
+
+        .secondary-btn {
+            background-color: transparent;
+            color: var(--tg-theme-button-color, #007aff);
+            border: 1px solid var(--tg-theme-button-color, #007aff);
+        }
+
+        h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="card-container" onclick="flipCard()">
-        <div class="card" id="flashcard">
-            <div class="card-face card-front" id="word-front">Persistent</div>
-            <div class="card-face card-back" id="word-back">Matonatli / Qat'iy</div>
+    <!-- Fleshkardlar ekrani -->
+    <div id="flashcard-screen" class="screen">
+        <div class="card-container" onclick="flipCard()">
+            <div class="card" id="flashcard">
+                <div class="card-face card-front" id="word-front">Yuklanmoqda...</div>
+                <div class="card-face card-back" id="word-back">...</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="nextWord()">Keyingi so'z ➔</button>
+            <button class="secondary-btn" onclick="showAddScreen()">➕ Yangi so'z qo'shish</button>
         </div>
     </div>
 
-    <div class="controls">
-        <button onclick="nextWord()">Keyingi so'z ➔</button>
+    <!-- So'z qo'shish ekrani -->
+    <div id="add-screen" class="screen hidden">
+        <h3>Yangi so'z qo'shish</h3>
+        <input type="text" id="en-input" placeholder="Inglizcha so'z (masalan: Curious)">
+        <div style="height: 10px;"></div>
+        <input type="text" id="uz-input" placeholder="O'zbekcha tarjimasi (masalan: Qiziquvchan)">
+        
+        <div class="controls" style="margin-top: 20px;">
+            <button onclick="saveWord()">Saqlash</button>
+            <button class="secondary-btn" onclick="showFlashcardScreen()">🔙 Orqaga</button>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const words = [
+        // Foydalanuvchining o'z so'zlari (localStorage'da saqlanadi)
+        let words = JSON.parse(localStorage.getItem('my_vocab')) || [
             { en: "Persistent", uz: "Matonatli / Qat'iy" },
-            { en: "Ambiguous", uz: "Ikki ma'noli / Tushunarsiz" },
-            { en: "Meticulous", uz: "Tafsilotlarga e'tiborli" },
-            { en: "Resilient", uz: "Chidamli / Bardoshli" }
+            { en: "Ambiguous", uz: "Ikki ma'noli / Tushunarsiz" }
         ];
 
         let currentIndex = 0;
 
+        function updateCard() {
+            if (words.length === 0) {
+                document.getElementById('word-front').innerText = "Ro'yxat bo'sh";
+                document.getElementById('word-back').innerText = "So'z qo'shing";
+                return;
+            }
+            currentIndex = currentIndex % words.length;
+            document.getElementById('word-front').innerText = words[currentIndex].en;
+            document.getElementById('word-back').innerText = words[currentIndex].uz;
+        }
+
         function flipCard() {
+            if (words.length === 0) return;
             document.getElementById('flashcard').classList.toggle('flipped');
         }
 
         function nextWord() {
+            if (words.length === 0) return;
             const card = document.getElementById('flashcard');
             card.classList.remove('flipped');
             
             setTimeout(() => {
                 currentIndex = (currentIndex + 1) % words.length;
-                document.getElementById('word-front').innerText = words[currentIndex].en;
-                document.getElementById('word-back').innerText = words[currentIndex].uz;
+                updateCard();
             }, 200);
         }
+
+        function showAddScreen() {
+            document.getElementById('flashcard-screen').classList.add('hidden');
+            document.getElementById('add-screen').classList.remove('hidden');
+        }
+
+        function showFlashcardScreen() {
+            document.getElementById('add-screen').classList.add('hidden');
+            document.getElementById('flashcard-screen').classList.remove('hidden');
+            updateCard();
+        }
+
+        function saveWord() {
+            const en = document.getElementById('en-input').value.trim();
+            const uz = document.getElementById('uz-input').value.trim();
+
+            if (!en || !uz) {
+                alert("Iltimos, ikkala maydonni ham to'ldiring!");
+                return;
+            }
+
+            words.push({ en, uz });
+            localStorage.setItem('my_vocab', JSON.stringify(words));
+
+            document.getElementById('en-input').value = '';
+            document.getElementById('uz-input').value = '';
+
+            alert("So'z muvaffaqiyatli qo'shildi!");
+            showFlashcardScreen();
+        }
+
+        // Dastlabki ishga tushish
+        updateCard();
     </script>
 </body>
 </html>
